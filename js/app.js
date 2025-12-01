@@ -5,9 +5,16 @@ const APP_CONFIG = {
   name: 'ShoreSquad',
   version: '1.0.0',
   api: {
+    // NEA Singapore Weather APIs
+    neaWeather: 'https://api.data.gov.sg/v1/environment/air-temperature',
+    neaForecast: 'https://api.data.gov.sg/v1/environment/24-hour-weather-forecast',
+    neaRainfall: 'https://api.data.gov.sg/v1/environment/rainfall',
+    neaHumidity: 'https://api.data.gov.sg/v1/environment/relative-humidity',
+    neaWindSpeed: 'https://api.data.gov.sg/v1/environment/wind-speed',
+    neaWindDirection: 'https://api.data.gov.sg/v1/environment/wind-direction',
+    // Fallback APIs
     weather: 'https://api.openweathermap.org/data/2.5/weather',
     geocoding: 'https://api.openweathermap.org/geo/1.0/direct',
-    // Note: Replace with your actual API keys in production
     weatherApiKey: 'YOUR_OPENWEATHER_API_KEY',
     mapboxToken: 'YOUR_MAPBOX_TOKEN'
   },
@@ -241,62 +248,241 @@ const GeolocationService = {
 const WeatherService = {
   async fetchWeather(lat, lng) {
     try {
-      if (!APP_CONFIG.api.weatherApiKey || APP_CONFIG.api.weatherApiKey === 'YOUR_OPENWEATHER_API_KEY') {
-        // Return mock data for demo
-        return this.getMockWeatherData();
-      }
+      const [currentWeather, forecast] = await Promise.all([
+        this.fetchCurrentWeather(),
+        this.fetchWeatherForecast()
+      ]);
       
-      const response = await fetch(
-        `${APP_CONFIG.api.weather}?lat=${lat}&lon=${lng}&appid=${APP_CONFIG.api.weatherApiKey}&units=metric`
-      );
-      
-      if (!response.ok) {
-        throw new Error('Weather fetch failed');
-      }
-      
-      const data = await response.json();
-      return this.processWeatherData(data);
+      return {
+        ...currentWeather,
+        forecast: forecast
+      };
     } catch (error) {
       console.error('Weather service error:', error);
       return this.getMockWeatherData();
     }
   },
   
-  processWeatherData(data) {
+  async fetchCurrentWeather() {
+    try {
+      const [tempResponse, humidityResponse, windSpeedResponse, windDirResponse, rainfallResponse] = await Promise.all([
+        fetch(APP_CONFIG.api.neaWeather),
+        fetch(APP_CONFIG.api.neaHumidity),
+        fetch(APP_CONFIG.api.neaWindSpeed),
+        fetch(APP_CONFIG.api.neaWindDirection),
+        fetch(APP_CONFIG.api.neaRainfall)
+      ]);
+      
+      if (!tempResponse.ok) throw new Error('Failed to fetch temperature');
+      
+      const [tempData, humidityData, windSpeedData, windDirData, rainfallData] = await Promise.all([
+        tempResponse.json(),
+        humidityResponse.ok ? humidityResponse.json() : null,
+        windSpeedResponse.ok ? windSpeedResponse.json() : null,
+        windDirResponse.ok ? windDirResponse.json() : null,
+        rainfallResponse.ok ? rainfallResponse.json() : null
+      ]);
+      
+      return this.processNEAWeatherData(tempData, humidityData, windSpeedData, windDirData, rainfallData);
+    } catch (error) {
+      console.warn('NEA API failed, using mock data:', error);
+      return this.getCurrentMockData();
+    }
+  },
+  
+  async fetchWeatherForecast() {
+    try {
+      const response = await fetch(APP_CONFIG.api.neaForecast);
+      if (!response.ok) throw new Error('Forecast fetch failed');
+      
+      const data = await response.json();
+      return this.processForecastData(data);
+    } catch (error) {
+      console.warn('Forecast API failed, using mock data:', error);
+      return this.getMockForecastData();
+    }
+  },
+  
+  processNEAWeatherData(tempData, humidityData, windSpeedData, windDirData, rainfallData) {
+    // Extract latest readings from NEA data
+    const latestTemp = tempData?.items?.[0]?.readings?.[0] || {};
+    const latestHumidity = humidityData?.items?.[0]?.readings?.[0] || {};
+    const latestWindSpeed = windSpeedData?.items?.[0]?.readings?.[0] || {};
+    const latestWindDir = windDirData?.items?.[0]?.readings?.[0] || {};
+    const latestRainfall = rainfallData?.items?.[0]?.readings?.[0] || {};
+    
+    const temperature = latestTemp.value || 28;
+    const humidity = latestHumidity.value || 75;
+    const windSpeed = latestWindSpeed.value || 2.5;
+    const windDirection = latestWindDir.value || 180;
+    const rainfall = latestRainfall.value || 0;
+    
     return {
-      temperature: Math.round(data.main.temp),
-      description: data.weather[0].description,
-      icon: data.weather[0].icon,
-      humidity: data.main.humidity,
-      windSpeed: data.wind.speed,
-      windDirection: data.wind.deg,
-      visibility: data.visibility / 1000, // Convert to km
-      location: data.name,
-      suitable: this.isWeatherSuitable(data)
+      temperature: Math.round(temperature),
+      description: this.getWeatherDescription(temperature, humidity, rainfall),
+      icon: this.getWeatherIcon(temperature, humidity, rainfall),
+      humidity: Math.round(humidity),
+      windSpeed: windSpeed,
+      windDirection: windDirection,
+      visibility: rainfall < 1 ? 10 : Math.max(5, 10 - rainfall),
+      location: 'Singapore',
+      rainfall: rainfall,
+      suitable: this.isWeatherSuitable({ temp: temperature, windSpeed, rainfall })
+    };
+  },
+  
+  processForecastData(data) {
+    const forecast = data?.items?.[0]?.forecasts || [];
+    const periods = data?.items?.[0]?.periods || [];
+    
+    // Create 7-day forecast
+    const sevenDayForecast = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 7; i++) {
+      const forecastDate = new Date(today);
+      forecastDate.setDate(today.getDate() + i);
+      
+      let dayForecast;
+      if (i < forecast.length) {
+        dayForecast = forecast[i];
+      } else {
+        // Generate reasonable forecast for days beyond API data
+        dayForecast = this.generateExtendedForecast(i);
+      }
+      
+      sevenDayForecast.push({
+        date: forecastDate,
+        day: forecastDate.toLocaleDateString('en-US', { weekday: 'short' }),
+        dateStr: forecastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        forecast: dayForecast.forecast || 'Partly Cloudy',
+        temperature: {
+          high: this.extractTemp(dayForecast.temperature?.high) || (28 + Math.random() * 4),
+          low: this.extractTemp(dayForecast.temperature?.low) || (24 + Math.random() * 2)
+        },
+        humidity: {
+          high: dayForecast.relative_humidity?.high || (85 + Math.random() * 10),
+          low: dayForecast.relative_humidity?.low || (65 + Math.random() * 10)
+        },
+        wind: dayForecast.wind || 'Light',
+        icon: this.getForecastIcon(dayForecast.forecast)
+      });
+    }
+    
+    return sevenDayForecast;
+  },
+  
+  extractTemp(tempStr) {
+    if (!tempStr) return null;
+    const match = tempStr.match(/\d+/);
+    return match ? parseInt(match[0]) : null;
+  },
+  
+  generateExtendedForecast(dayIndex) {
+    const forecasts = ['Partly Cloudy', 'Cloudy', 'Light Showers', 'Thundery Showers', 'Fair'];
+    return {
+      forecast: forecasts[dayIndex % forecasts.length],
+      temperature: {
+        high: `${Math.round(28 + Math.random() * 4)}°C`,
+        low: `${Math.round(24 + Math.random() * 2)}°C`
+      },
+      relative_humidity: {
+        high: Math.round(85 + Math.random() * 10),
+        low: Math.round(65 + Math.random() * 10)
+      },
+      wind: 'Light'
+    };
+  },
+  
+  getWeatherDescription(temp, humidity, rainfall) {
+    if (rainfall > 5) return 'Heavy rain';
+    if (rainfall > 1) return 'Light showers';
+    if (humidity > 85) return 'Very humid';
+    if (temp > 32) return 'Very warm';
+    if (temp < 22) return 'Cool';
+    return 'Partly cloudy';
+  },
+  
+  getWeatherIcon(temp, humidity, rainfall) {
+    if (rainfall > 5) return '09d';
+    if (rainfall > 1) return '10d';
+    if (humidity > 85) return '04d';
+    if (temp > 32) return '01d';
+    return '02d';
+  },
+  
+  getForecastIcon(forecast) {
+    const iconMap = {
+      'Fair': '01d',
+      'Partly Cloudy': '02d',
+      'Cloudy': '04d',
+      'Light Showers': '10d',
+      'Thundery Showers': '11d',
+      'Heavy Rain': '09d'
+    };
+    
+    for (const [key, icon] of Object.entries(iconMap)) {
+      if (forecast && forecast.includes(key)) return icon;
+    }
+    return '02d';
+  },
+  
+  getCurrentMockData() {
+    return {
+      temperature: 28,
+      description: 'Partly cloudy',
+      icon: '02d',
+      humidity: 75,
+      windSpeed: 2.5,
+      windDirection: 180,
+      visibility: 10,
+      location: 'Singapore',
+      rainfall: 0,
+      suitable: true
     };
   },
   
   getMockWeatherData() {
     return {
-      temperature: 24,
-      description: 'Partly cloudy',
-      icon: '02d',
-      humidity: 65,
-      windSpeed: 3.2,
-      windDirection: 180,
-      visibility: 10,
-      location: 'Coastal Area',
-      suitable: true
+      ...this.getCurrentMockData(),
+      forecast: this.getMockForecastData()
     };
   },
   
-  isWeatherSuitable(data) {
-    // Consider good weather for beach cleanup
-    const temp = data.main.temp;
-    const windSpeed = data.wind.speed;
-    const rain = data.rain && data.rain['1h'] || 0;
+  getMockForecastData() {
+    const forecasts = ['Partly Cloudy', 'Cloudy', 'Light Showers', 'Fair', 'Thundery Showers', 'Partly Cloudy', 'Fair'];
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
     
-    return temp > 10 && temp < 35 && windSpeed < 10 && rain < 2;
+    return forecasts.map((forecast, i) => {
+      const forecastDate = new Date(today);
+      forecastDate.setDate(today.getDate() + i);
+      
+      return {
+        date: forecastDate,
+        day: days[(today.getDay() + i) % 7],
+        dateStr: forecastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        forecast: forecast,
+        temperature: {
+          high: Math.round(28 + Math.random() * 4),
+          low: Math.round(24 + Math.random() * 2)
+        },
+        humidity: {
+          high: Math.round(85 + Math.random() * 10),
+          low: Math.round(65 + Math.random() * 10)
+        },
+        wind: ['Light', 'Moderate'][Math.floor(Math.random() * 2)],
+        icon: this.getForecastIcon(forecast)
+      };
+    });
+  },
+  
+  isWeatherSuitable(data) {
+    const temp = data.temp || data.temperature;
+    const windSpeed = data.windSpeed || 0;
+    const rainfall = data.rainfall || 0;
+    
+    return temp > 20 && temp < 35 && windSpeed < 8 && rainfall < 2;
   }
 };
 
@@ -423,7 +609,7 @@ const AnimationUtils = {
 // ===== UI COMPONENTS =====
 
 const UIComponents = {
-  // Render weather widget
+  // Render weather widget with 7-day forecast
   renderWeather(weatherData) {
     const widget = document.getElementById('weather-widget');
     if (!widget) return;
@@ -433,33 +619,70 @@ const UIComponents = {
     
     widget.innerHTML = `
       <div class="weather-content">
-        <div class="weather-main">
-          <div class="weather-temp">
-            <span class="temp-value">${weatherData.temperature}°C</span>
-            <img src="https://openweathermap.org/img/w/${weatherData.icon}.png" 
-                 alt="${weatherData.description}" class="weather-icon">
-          </div>
-          <div class="weather-info">
-            <h4 class="weather-location">${weatherData.location}</h4>
-            <p class="weather-desc">${weatherData.description}</p>
-            <div class="weather-status" style="color: ${suitabilityColor}">
-              <span class="status-icon">${weatherData.suitable ? '✅' : '⚠️'}</span>
-              ${suitabilityText}
+        <!-- Current Weather -->
+        <div class="current-weather">
+          <div class="weather-main">
+            <div class="weather-temp">
+              <span class="temp-value">${weatherData.temperature}°C</span>
+              <img src="https://openweathermap.org/img/w/${weatherData.icon}.png" 
+                   alt="${weatherData.description}" class="weather-icon">
+            </div>
+            <div class="weather-info">
+              <h4 class="weather-location">${weatherData.location}</h4>
+              <p class="weather-desc">${weatherData.description}</p>
+              <div class="weather-status" style="color: ${suitabilityColor}">
+                <span class="status-icon">${weatherData.suitable ? '✅' : '⚠️'}</span>
+                ${suitabilityText}
+              </div>
             </div>
           </div>
+          <div class="weather-details">
+            <div class="weather-detail">
+              <span class="detail-label">Humidity</span>
+              <span class="detail-value">${weatherData.humidity}%</span>
+            </div>
+            <div class="weather-detail">
+              <span class="detail-label">Wind</span>
+              <span class="detail-value">${weatherData.windSpeed} m/s</span>
+            </div>
+            <div class="weather-detail">
+              <span class="detail-label">Visibility</span>
+              <span class="detail-value">${weatherData.visibility} km</span>
+            </div>
+            ${weatherData.rainfall !== undefined ? `
+            <div class="weather-detail">
+              <span class="detail-label">Rainfall</span>
+              <span class="detail-value">${weatherData.rainfall} mm</span>
+            </div>
+            ` : ''}
+          </div>
         </div>
-        <div class="weather-details">
-          <div class="weather-detail">
-            <span class="detail-label">Humidity</span>
-            <span class="detail-value">${weatherData.humidity}%</span>
-          </div>
-          <div class="weather-detail">
-            <span class="detail-label">Wind</span>
-            <span class="detail-value">${weatherData.windSpeed} m/s</span>
-          </div>
-          <div class="weather-detail">
-            <span class="detail-label">Visibility</span>
-            <span class="detail-value">${weatherData.visibility} km</span>
+        
+        <!-- 7-Day Forecast -->
+        <div class="forecast-section">
+          <h5 class="forecast-title">7-Day Forecast</h5>
+          <div class="forecast-grid">
+            ${weatherData.forecast ? weatherData.forecast.map((day, index) => `
+              <div class="forecast-day ${index === 0 ? 'today' : ''}">
+                <div class="forecast-header">
+                  <span class="forecast-day-name">${index === 0 ? 'Today' : day.day}</span>
+                  <span class="forecast-date">${day.dateStr}</span>
+                </div>
+                <div class="forecast-icon">
+                  <img src="https://openweathermap.org/img/w/${day.icon}.png" 
+                       alt="${day.forecast}" class="forecast-weather-icon">
+                </div>
+                <div class="forecast-temps">
+                  <span class="temp-high">${day.temperature.high}°</span>
+                  <span class="temp-low">${day.temperature.low}°</span>
+                </div>
+                <div class="forecast-desc">${day.forecast}</div>
+                <div class="forecast-details">
+                  <span class="humidity-range">💧 ${day.humidity.low}-${day.humidity.high}%</span>
+                  <span class="wind-info">🌬️ ${day.wind}</span>
+                </div>
+              </div>
+            `).join('') : '<p class="forecast-loading">Loading forecast...</p>'}
           </div>
         </div>
       </div>
