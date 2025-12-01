@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ShoreSquad - Rally your crew, track weather, and hit the next beach cleanup with our dope map app!">
+    <meta name="keywords" content="beach cleanup, environmental action, weather tracking, community, eco-friendly">
+    <meta name="author" content="ShoreSquad Team">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="ShoreSquad - Beach Cleanup Community">
+    <meta property="og:description" content="Rally your crew, track weather, and hit the next beach cleanup with our dope map app!">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://shoresquad.app">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1E88E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="ShoreSquad">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="js/app.js" as="script">
+    
+    <title>ShoreSquad - Beach Cleanup Community</title>
+</head>
+<body>
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
+    
+    <!-- Navigation Header -->
+    <header class="header" role="banner">
+        <nav class="nav" aria-label="Main navigation">
+            <div class="nav-container">
+                <div class="nav-brand">
+                    <img src="images/logo.svg" alt="ShoreSquad Logo" class="logo" width="40" height="40">
+                    <h1 class="brand-title">ShoreSquad</h1>
+                </div>
+                
+                <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+                    <span class="hamburger"></span>
+                    <span class="hamburger"></span>
+                    <span class="hamburger"></span>
+                </button>
+                
+                <ul class="nav-menu" role="menubar">
+                    <li role="none"><a href="#home" role="menuitem">Home</a></li>
+                    <li role="none"><a href="#events" role="menuitem">Events</a></li>
+                    <li role="none"><a href="#weather" role="menuitem">Weather</a></li>
+                    <li role="none"><a href="#community" role="menuitem">Community</a></li>
+                    <li role="none"><a href="#about" role="menuitem">About</a></li>
+                </ul>
+                
+                <div class="nav-actions">
+                    <button class="btn btn-secondary" id="login-btn">Login</button>
+                    <button class="btn btn-primary" id="signup-btn">Join Squad</button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main id="main-content" class="main">
+        <!-- Hero Section -->
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="hero-container">
+                <div class="hero-content">
+                    <h2 id="hero-title" class="hero-title">Rally Your Crew,<br>Clean the Shore!</h2>
+                    <p class="hero-subtitle">Track weather, find nearby cleanups, and make eco-action fun with your squad.</p>
+                    
+                    <div class="hero-actions">
+                        <button class="btn btn-primary btn-large" id="find-cleanup-btn">
+                            <span class="btn-icon">🌊</span>
+                            Find Cleanup Events
+                        </button>
+                        <button class="btn btn-secondary btn-large" id="create-event-btn">
+                            <span class="btn-icon">📍</span>
+                            Create Event
+                        </button>
+                    </div>
+                    
+                    <!-- Quick Stats -->
+                    <div class="stats" role="region" aria-label="Community statistics">
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="1250">0</span>
+                            <span class="stat-label">Active Members</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="89">0</span>
+                            <span class="stat-label">Beach Cleanups</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="2340">0</span>
+                            <span class="stat-label">Kg of Trash Collected</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hero-visual">
+                    <div class="map-preview" id="map-preview">
+                        <div class="map-placeholder">
+                            <div class="map-loading" aria-label="Loading map">
+                                <span class="loading-spinner"></span>
+                                <p>Loading nearby events...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Weather Widget -->
+        <section class="weather-section" aria-labelledby="weather-title">
+            <div class="container">
+                <h3 id="weather-title" class="section-title">Current Weather</h3>
+                <div class="weather-widget" id="weather-widget">
+                    <div class="weather-loading">
+                        <span class="loading-spinner"></span>
+                        <p>Getting weather conditions...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upcoming Events -->
+        <section class="events-section" aria-labelledby="events-title">
+            <div class="container">
+                <h3 id="events-title" class="section-title">Upcoming Beach Cleanups</h3>
+                <div class="events-grid" id="events-grid">
+                    <!-- Events will be populated by JavaScript -->
+                </div>
+                <div class="section-actions">
+                    <button class="btn btn-primary" id="view-all-events">View All Events</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Community Features -->
+        <section class="community-section" aria-labelledby="community-title">
+            <div class="container">
+                <h3 id="community-title" class="section-title">Join the Squad</h3>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🗺️</div>
+                        <h4 class="feature-title">Interactive Maps</h4>
+                        <p class="feature-description">Find beach cleanup events near you with real-time locations and directions.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🌤️</div>
+                        <h4 class="feature-title">Weather Tracking</h4>
+                        <p class="feature-description">Check conditions before you go - we'll help you pick the perfect cleanup day.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">👥</div>
+                        <h4 class="feature-title">Squad Building</h4>
+                        <p class="feature-description">Rally your crew, invite friends, and track your collective impact together.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🏆</div>
+                        <h4 class="feature-title">Impact Tracking</h4>
+                        <p class="feature-description">See your progress, earn badges, and celebrate your environmental wins.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer" role="contentinfo">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="images/logo.svg" alt="ShoreSquad Logo" class="footer-logo" width="32" height="32">
+                    <p class="footer-tagline">Making beach cleanups dope, one squad at a time.</p>
+                </div>
+                
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h5 class="footer-title">Get Started</h5>
+                        <ul class="footer-list">
+                            <li><a href="#signup">Join Squad</a></li>
+                            <li><a href="#events">Find Events</a></li>
+                            <li><a href="#create">Create Event</a></li>
+                            <li><a href="#mobile">Mobile App</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h5 class="footer-title">Community</h5>
+                        <ul class="footer-list">
+                            <li><a href="#about">About Us</a></li>
+                            <li><a href="#impact">Our Impact</a></li>
+                            <li><a href="#blog">Blog</a></li>
+                            <li><a href="#contact">Contact</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h5 class="footer-title">Support</h5>
+                        <ul class="footer-list">
+                            <li><a href="#help">Help Center</a></li>
+                            <li><a href="#privacy">Privacy Policy</a></li>
+                            <li><a href="#terms">Terms of Service</a></li>
+                            <li><a href="#accessibility">Accessibility</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p class="copyright">&copy; 2025 ShoreSquad. All rights reserved.</p>
+                <div class="social-links">
+                    <a href="#" aria-label="Follow us on Instagram" class="social-link">
+                        <span class="social-icon">📸</span>
+                    </a>
+                    <a href="#" aria-label="Follow us on TikTok" class="social-link">
+                        <span class="social-icon">🎵</span>
+                    </a>
+                    <a href="#" aria-label="Join our Discord" class="social-link">
+                        <span class="social-icon">💬</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay" aria-hidden="true">
+        <div class="loading-content">
+            <div class="loading-spinner-large"></div>
+            <p class="loading-text">Loading ShoreSquad...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registered'))
+                    .catch(registrationError => console.log('SW registration failed'));
+            });
+        }
+    </script>
+</body>
+</html>
