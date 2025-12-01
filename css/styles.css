@@ -451,8 +451,56 @@ a:hover {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
   overflow: hidden;
-  height: 400px;
   position: relative;
+}
+
+.map-container {
+  width: 100%;
+}
+
+.map-header {
+  background: linear-gradient(135deg, var(--ocean-blue), var(--ocean-blue-light));
+  color: white;
+  padding: var(--spacing-4);
+  text-align: center;
+}
+
+.map-header h4 {
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.map-location {
+  font-size: var(--text-sm);
+  opacity: 0.9;
+}
+
+.map-info {
+  background: white;
+  padding: var(--spacing-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.cleanup-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.cleanup-time,
+.cleanup-coords {
+  font-size: var(--text-sm);
+  color: var(--gray-600);
+}
+
+.cleanup-time {
+  font-weight: 600;
+  color: var(--sea-foam-green);
 }
 
 .map-placeholder {
